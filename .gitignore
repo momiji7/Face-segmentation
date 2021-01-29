@@ -1,0 +1,7 @@
+*.onnx
+*.jpg
+*.png
+__pycache__/
+runs
+snapshots*
+check*
