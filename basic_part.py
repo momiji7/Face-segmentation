@@ -37,3 +37,47 @@ def adjust_learning_rate(args, optimizer, itcont):
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
+        
+ 
+class Scheduler(object):
+    def __init__(self, args,
+                opt,
+                lr0,
+                momentum,
+                wd,
+                warmup_steps,
+                warmup_start_lr,
+                max_iter,
+                power):
+        self.warmup_steps = warmup_steps
+        self.warmup_start_lr = warmup_start_lr
+        self.lr0 = lr0
+        self.lr = self.lr0
+        self.max_iter = float(max_iter)
+        self.power = power
+        self.it = 0     
+        self.warmup_factor = (self.lr0/self.warmup_start_lr)**(1./self.warmup_steps)
+        self.optim = opt
+
+
+    def get_lr(self):
+        if self.it <= self.warmup_steps:
+            lr = self.warmup_start_lr*(self.warmup_factor**self.it)
+        else:
+            factor = (1-(self.it-self.warmup_steps)/(self.max_iter-self.warmup_steps))**self.power
+            lr = self.lr0 * factor
+        return lr
+
+
+    def step(self):
+        self.lr = self.get_lr()
+        for pg in self.optim.param_groups:
+                pg['lr'] = self.lr
+        self.it += 1
+            
+            
+    def state_dict(self):
+        
+        return {}
+
+

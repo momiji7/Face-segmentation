@@ -40,7 +40,8 @@ def train(args):
         logger.log("=> network :\n {}".format(net))   
     
     optimizer = get_optimizer(filter(lambda p: p.requires_grad, net.parameters()), args)    
-    scheduler = get_scheduler(args, optimizer)  
+    # scheduler = get_scheduler(args, optimizer)
+    scheduler = Scheduler(args, optimizer, 1e-2, 0.9, 5e-4, 1000, 1e-5, args.maxitcount, 0.9)
     criterion = SoftmaxLoss()
     
     last_info = logger.last_info()
@@ -69,7 +70,7 @@ def train(args):
         train_loss_epoch = AverageMeter()
         for i, (image, label) in enumerate(train_dataloader):
             itcont += 1
-            adjust_learning_rate(args, optimizer, itcont)
+            scheduler.step()
             
             image = image.cuda()
             label = label.cuda()
@@ -81,8 +82,7 @@ def train(args):
             loss32 = criterion(out32, label)
             
             loss = loss8 + (loss16 + loss32) * args.loss_alpha
-            
-            
+           
             train_loss_epoch.update(loss.item(), image.size(0))
             
             optimizer.zero_grad()
@@ -125,13 +125,13 @@ def train(args):
 
                 image_np = tensor2img(image)
                 label_np = label.cpu().numpy()
-                out_np   = out.cpu().numpy().argmax(0)
+                out_np   = out.cpu().numpy().argmax(1)
 
                 samp_num = min(16, image.size()[0])
                 canvas = np.zeros((args.input_height*samp_num, args.input_width*3, 3))
                 for j in range(image.size()[0]):  
-                    gt = show_seg(image_np[j], label_np[j], 19)
-                    prediction = show_seg(image_np[j], out_np[j], 19)
+                    gt = show_seg(image_np[j], label_np[j], args.nclass)
+                    prediction = show_seg(image_np[j], out_np[j], args.nclass)
 
                     canvas[j*args.input_height:(j+1)*args.input_height,0*args.input_width:1*args.input_width] = image_np[j]
                     canvas[j*args.input_height:(j+1)*args.input_height,1*args.input_width:2*args.input_width] = gt
