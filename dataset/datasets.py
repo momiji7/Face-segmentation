@@ -16,6 +16,7 @@ class MaskDataset(data.Dataset):
         self.args = args
         self.data = []
         self.transform = transform
+        self.label_reflection = None
         for file_path in json_path:
             with open(file_path, 'r') as f:
                 data = json.load(f)
@@ -30,7 +31,11 @@ class MaskDataset(data.Dataset):
         
         image = cv2.imread(self.data[index][0])
         label = cv2.imread(self.data[index][1])
+        image_ori = image.copy()
         
+        if not self.label_reflection is None:
+            label = self.label_reflection[label]
+                    
         if self.transform is not None:
             image, label = self.transform(image, label)
                         

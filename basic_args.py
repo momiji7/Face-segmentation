@@ -3,7 +3,8 @@ import os, sys, time, random, argparse
 
 def obtain_basic_args():
     parser = argparse.ArgumentParser(description='Segmentaion', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-      
+    
+    parser.add_argument('--dataset_name',     type=str,                  )
     parser.add_argument('--train_lists',      type=str,   nargs='+',      help='The list file path to the video training dataset.')
     parser.add_argument('--eval_lists',       type=str,   nargs='+',      help='The list file path to the image testing dataset.')
     parser.add_argument('--nclass',           type=int,                   help='The number of segmentation classes')
@@ -11,7 +12,7 @@ def obtain_basic_args():
 
   # Data Transform
     parser.add_argument('--input_height',     type=int,   default=256   )
-    parser.add_argument('--input_width',     type=int,   default=256   )
+    parser.add_argument('--input_width',      type=int,   default=256   )
     parser.add_argument('--flip_prob',        type=float, default=0.5,    help='argument flip probability.')
     parser.add_argument('--crop_perturb_max', type=int,   default=5,     help='argument crop : center of maximum perturb distance.')
     parser.add_argument('--scale_lists',      type=float,   nargs='+',      help='The list file path to the video training dataset.')

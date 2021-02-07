@@ -1,5 +1,7 @@
 CUDA_VISIBLE_DEVICES=1,2,3,4,5,6 python -m torch.distributed.launch --nproc_per_node=6 train.py \
-        --train_lists /search/speech/xz/datasets/segment/CelebAMask-HQ/CelebAMask-HQ.json \
+        --dataset_name cityscapes \
+        --train_lists /search/speech/xz/datasets/segment/cityscapes/cityscapes_train.json \
+        --eval_lists /search/speech/xz/datasets/segment/cityscapes/cityscapes_eval.json \
         --save_path ./snapshots/  \
         --input_height 512 \
         --input_width 512 \
@@ -10,5 +12,8 @@ CUDA_VISIBLE_DEVICES=1,2,3,4,5,6 python -m torch.distributed.launch --nproc_per_
         --epochs 50 \
         --gpu_num 6
         
+        
+#--dataset_name CelebAMask-HQ \
+#--train_lists /search/speech/xz/datasets/segment/CelebAMask-HQ/CelebAMask-HQ.json \
         
     
