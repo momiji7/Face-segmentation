@@ -9,6 +9,8 @@ def obtain_basic_args():
     parser.add_argument('--eval_lists',       type=str,   nargs='+',      help='The list file path to the image testing dataset.')
     parser.add_argument('--nclass',           type=int,                   help='The number of segmentation classes')
     parser.add_argument('--gpu_num',          type=int,   default=6,      help='The number of used gpu')
+    parser.add_argument('--no_apex',  dest='no_apex', action='store_true', help='Donot use apex')
+    parser.add_argument('--use_fp16', dest='use_fp16', action='store_true')
 
   # Data Transform
     parser.add_argument('--input_height',     type=int,   default=256   )

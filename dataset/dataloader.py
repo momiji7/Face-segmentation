@@ -29,7 +29,7 @@ def get_dataset(args, mode = 'train'):
                 transforms.AugCrop(args.input_width, args.input_height, args.crop_perturb_max, mean_fill),
                 transforms.ColorJitter(0.4, 0.4, 0.4),
                 transforms.ToTensor(),
-                transforms.Normalize(mean=[0.3257, 0.3690, 0.3223], std=[0.2112, 0.2148, 0.2115])
+                transforms.Normalize(mean=[0.3223, 0.3690, 0.3257], std=[0.2115, 0.2148, 0.2112])
             ])            
             dataset = CityScapesDataset(args, transform_list, args.train_lists)
         else:

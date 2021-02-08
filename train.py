@@ -1,6 +1,7 @@
 from basic_part import *
 from basic_args import obtain_basic_args
 import torch
+import torch.nn as nn
 import torch.distributed as dist
 import datetime
 from dataset.dataloader import get_dataloader
@@ -17,6 +18,12 @@ from util.evaluation import ConfusionMatrix
 import os
 
 def train(args):
+    
+    args.has_apex = True and not args.no_apex
+    try:
+        from apex import amp, parallel
+    except ImportError:
+        args.has_apex = False
     
     num_gpus = int(os.environ['WORLD_SIZE']) if 'WORLD_SIZE' in os.environ else 1
     args.distributed = num_gpus > 1
@@ -42,6 +49,13 @@ def train(args):
     args.maxitcount = args.epochs*len(train_dataloader)
     
     net = get_model(args)
+
+    if args.has_apex: 
+        net = parallel.convert_syncbn_model(net)
+    else:
+        net = nn.SyncBatchNorm.convert_sync_batchnorm(net)
+    
+   
     net.cuda()  
         
     if not (args.distributed and dist.get_rank() != 0):
@@ -55,6 +69,11 @@ def train(args):
     # scheduler = get_scheduler(args, optimizer)
     scheduler = Scheduler(args, optimizer, 1e-2, 0.9, 5e-4, 1000, 1e-5, args.maxitcount, 0.9)
     criterion = SoftmaxLoss()
+    
+    
+    if args.has_apex:        
+        opt_level = 'O1' if args.use_fp16 else 'O0'
+        net, optimizer = amp.initialize(net, optimizer, opt_level=opt_level)  
     
     last_info = logger.last_info()
     if last_info.exists():
@@ -72,8 +91,11 @@ def train(args):
         start_epoch = 0 
     
     if args.distributed:
-        net = nn.parallel.DistributedDataParallel(net, device_ids = [args.local_rank, ], output_device = args.local_rank, find_unused_parameters=True)
-    
+        if args.has_apex:
+            net = parallel.DistributedDataParallel(net, delay_allreduce=True)
+        else:
+            net = nn.parallel.DistributedDataParallel(net, device_ids = [args.local_rank, ], output_device = args.local_rank, find_unused_parameters=True)
+         
     # net = nn.parallel.DistributedDataParallel(net, device_ids = [args.local_rank, ], output_device = args.local_rank)
     
     itcont = -1
@@ -98,8 +120,12 @@ def train(args):
            
             train_loss_epoch.update(loss.item(), image.size(0))
             
-            optimizer.zero_grad()
-            loss.backward()
+            optimizer.zero_grad()            
+            if args.has_apex:
+                with amp.scale_loss(loss, optimizer) as scaled_loss:
+                    scaled_loss.backward()
+            else:
+                loss.backward()
             optimizer.step()
             
             if (i % args.print_freq == 0 or i+1 == len(train_dataloader)):
