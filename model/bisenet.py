@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
-from model.resnet import resnext50_32x4d
+from model.resnet import resnext50_32x4d, resnet101
 
 class SpatialPath(nn.Module):
     
@@ -77,6 +77,7 @@ class ContextPath(nn.Module):
         super(ContextPath, self).__init__()
         
         self.resnext50_32x4d = resnext50_32x4d(pretrained=True)
+        self.resnet101 = resnet101(pretrained=True)
         self.arm16 = ARM(arm_channel[0][0])
         self.arm32 = ARM(arm_channel[1][0])
         
@@ -95,7 +96,7 @@ class ContextPath(nn.Module):
         
     def forward(self, x):
         
-        x_16down, x_32down, x_avgpool = self.resnext50_32x4d(x)
+        x_16down, x_32down, x_avgpool = self.resnet101(x)
                 
         x_16down_arm = self.arm16(x_16down)
         x_32down_arm = self.arm32(x_32down)

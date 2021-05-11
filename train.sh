@@ -9,9 +9,11 @@ CUDA_VISIBLE_DEVICES=1,2,3,4,5,6 python -m torch.distributed.launch --nproc_per_
         --batch_size_per_gpu  4 \
         --nclass 19 \
         --LR 0.01 \
-        --epochs 50 \
+        --epochs 400 \
         --gpu_num 6 \
-        --use_fp16
+        --use_fp16 \
+        --loss_type ohem \
+        --ohem_thresh 0.7
         
         
 #--dataset_name CelebAMask-HQ \

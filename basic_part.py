@@ -1,10 +1,12 @@
 from model.bisenet import BiseNet
+from model.bisenet_author import BiSeNet
 import torch
 
 
 def get_model(args):
     if args.model_type == 'BiseNet':
-        net = BiseNet(args)
+        # net = BiseNet(args)
+        net = BiSeNet()
     return net
 
 
@@ -34,8 +36,10 @@ def get_scheduler(args, opt):
 def adjust_learning_rate(args, optimizer, itcont):
     """Sets the learning rate to the initial LR decayed by 10 every 2 epochs"""
     lr = args.LR * ((1 - itcont/args.maxitcount)**args.scheduler_power)
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
+    for i in range(2):
+        optimizer.param_groups[i]['lr'] = lr
+    for i in range(2, len(optimizer.param_groups)):
+        optimizer.param_groups[i]['lr'] = lr * 10
 
         
  

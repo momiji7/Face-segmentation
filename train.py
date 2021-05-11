@@ -17,11 +17,36 @@ from util.util import tensor2img, transform_tensor2img
 from util.evaluation import ConfusionMatrix
 import os
 
+def __init_weight(feature, conv_init, norm_layer, bn_eps, bn_momentum,
+                  **kwargs):
+    for name, m in feature.named_modules():
+        if isinstance(m, (nn.Conv2d, nn.Conv3d, nn.ConvTranspose2d)):
+            conv_init(m.weight, **kwargs)
+        elif isinstance(m, norm_layer):
+            m.eps = bn_eps
+            m.momentum = bn_momentum
+            nn.init.constant_(m.weight, 1)
+            nn.init.constant_(m.bias, 0)
+
+
+def init_weight(module_list, conv_init, norm_layer, bn_eps, bn_momentum,
+                **kwargs):
+    if isinstance(module_list, list):
+        for feature in module_list:
+            __init_weight(feature, conv_init, norm_layer, bn_eps, bn_momentum,
+                          **kwargs)
+    else:
+        __init_weight(module_list, conv_init, norm_layer, bn_eps, bn_momentum,
+                      **kwargs)
+
+
+
 def train(args):
     
     args.has_apex = True and not args.no_apex
     try:
         from apex import amp, parallel
+        from apex.parallel import DistributedDataParallel, SyncBatchNorm
     except ImportError:
         args.has_apex = False
     
@@ -49,6 +74,14 @@ def train(args):
     args.maxitcount = args.epochs*len(train_dataloader)
     
     net = get_model(args)
+    
+    
+    init_weight(net.business_layer, nn.init.kaiming_normal_,
+            SyncBatchNorm, 1e-5, 0.1,
+            mode='fan_in', nonlinearity='relu')
+    
+    
+    
 
     if args.has_apex: 
         net = parallel.convert_syncbn_model(net)
@@ -63,12 +96,57 @@ def train(args):
         logger.log('Arguments : -------------------------------')
         for name, value in args._get_kwargs():
             logger.log('{:16} : {:}'.format(name, value))
-        logger.log("=> network :\n {}".format(net))   
+        logger.log("=> network :\n {}".format(net)) 
+        
+    def group_weight(weight_group, module, norm_layer, lr, no_decay_lr=None):
+        group_decay = []
+        group_no_decay = []
+        for m in module.modules():
+            if isinstance(m, nn.Linear):
+                group_decay.append(m.weight)
+                if m.bias is not None:
+                    group_no_decay.append(m.bias)
+            elif isinstance(m, (nn.Conv2d, nn.Conv3d, nn.ConvTranspose2d)):
+                group_decay.append(m.weight)
+                if m.bias is not None:
+                    group_no_decay.append(m.bias)
+            elif isinstance(m, norm_layer) or isinstance(m, (
+            nn.GroupNorm, nn.InstanceNorm2d, nn.LayerNorm)):
+                if m.weight is not None:
+                    group_no_decay.append(m.weight)
+                if m.bias is not None:
+                    group_no_decay.append(m.bias)
+        assert len(list(module.parameters())) == len(group_decay) + len(
+            group_no_decay)
+        weight_group.append(dict(params=group_decay, lr=lr))
+        lr = lr if no_decay_lr is None else no_decay_lr
+        weight_group.append(dict(params=group_no_decay, weight_decay=.0, lr=lr))
+        return weight_group    
+
+        
+        
+    base_lr = args.LR    
+    params_list = []
+    params_list = group_weight(params_list, net.context_path,
+                               SyncBatchNorm, base_lr)
+    params_list = group_weight(params_list, net.spatial_path,
+                               SyncBatchNorm, base_lr * 10)
+    params_list = group_weight(params_list, net.global_context,
+                               SyncBatchNorm, base_lr * 10)
+    params_list = group_weight(params_list, net.arms,
+                               SyncBatchNorm, base_lr * 10)
+    params_list = group_weight(params_list, net.refines,
+                               SyncBatchNorm, base_lr * 10)
+    params_list = group_weight(params_list, net.heads,
+                               SyncBatchNorm, base_lr * 10)
+    params_list = group_weight(params_list, net.ffm,
+                               SyncBatchNorm, base_lr * 10)    
+        
     
-    optimizer = get_optimizer(filter(lambda p: p.requires_grad, net.parameters()), args)    
+    optimizer = get_optimizer(params_list, args)    
     # scheduler = get_scheduler(args, optimizer)
     scheduler = Scheduler(args, optimizer, 1e-2, 0.9, 5e-4, 1000, 1e-5, args.maxitcount, 0.9)
-    criterion = SoftmaxLoss()
+    criterion = get_criterion(args)
     
     
     if args.has_apex:        

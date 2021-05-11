@@ -6,3 +6,4 @@ runs
 snapshots*
 check*
 results*
+old_runs/

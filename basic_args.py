@@ -24,7 +24,9 @@ def obtain_basic_args():
     parser.add_argument('--print_freq',       type=int,   default=100,    help='print frequency (default: 200)')
     parser.add_argument('--save_path',        type=str,                   help='Folder to save checkpoints and log.')
 
-
+    # Loss
+    parser.add_argument('--loss_type',        type=str,   default='softmax',  help='Optimizer type')
+    parser.add_argument('--ohem_thresh',      type=float, default=0.7,    )
 
     # Optimizer
     parser.add_argument('--optimizer_type',   type=str,   default='sgd',  help='Optimizer type')
